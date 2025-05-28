@@ -10,7 +10,7 @@ const YOUR_PHONE_NUMBER = "+5585988849894";
 
 client.calls
   .create({
-    url: "http://46.202.150.244:8082/voice",
+    url: "https://testevoice.onrender.com/voice",
     to: YOUR_PHONE_NUMBER,
     from: process.env.TWILIO_PHONE_NUMBER,
   })
