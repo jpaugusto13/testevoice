@@ -1,17 +1,26 @@
-const { twiml } = require("twilio");
+require("dotenv").config();
 const express = require("express");
-const app = express();
+const { twiml } = require("twilio");
+const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
 
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+// Serve a pasta de áudios
 app.use("/voices", express.static(path.join(__dirname, "voices")));
 
+// Rotas
+
+// 📞 Rota inicial da chamada
 app.post("/voice", (req, res) => {
   const response = new twiml.VoiceResponse();
 
-  response.say("Olá, bem-vindo à Wiiprint Sublimações.");
+  // Toca um áudio inicial
+  response.play(`${process.env.BASE_URL}/voices/bemvindo.mp3`);
 
-  response.play("http://46.202.150.244:8082/voices/bemvindo.mp3");
-
+  // Abre um gather pra escutar o cliente
   const gather = response.gather({
     input: "speech",
     action: "/processar",
@@ -19,13 +28,16 @@ app.post("/voice", (req, res) => {
     speechTimeout: "auto",
   });
 
-  gather.say("Pode falar, estou te ouvindo.");
+  gather.say(
+    "Seja bem-vindo à Wiiprint Sublimações. Pode falar, estou te ouvindo."
+  );
 
   res.type("text/xml");
   res.send(response.toString());
 });
 
-app.post("/processar", (req, res) => {
+// 🔄 Processa o que o cliente falou e responde
+app.post("/processar", async (req, res) => {
   const response = new twiml.VoiceResponse();
 
   const gather = response.gather({
@@ -35,12 +47,18 @@ app.post("/processar", (req, res) => {
     speechTimeout: "auto",
   });
 
-  gather.say("Pode continuar falando.");
+  gather.say("Desculpe, não entendi. Pode repetir, por favor.");
 
   res.type("text/xml");
   res.send(response.toString());
 });
 
-app.listen(8082, () => {
-  console.log("🚀 Servidor rodando na porta 8082");
+// 🔊 Teste de áudio (rota opcional)
+app.get("/", (req, res) => {
+  res.send("API da Wiiprint Rodando!");
+});
+
+// 🚀 Start
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
