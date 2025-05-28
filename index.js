@@ -8,7 +8,9 @@ app.use("/voices", express.static(path.join(__dirname, "voices")));
 app.post("/voice", (req, res) => {
   const response = new twiml.VoiceResponse();
 
-  response.play("http://46.202.150.244:8082/voices/bemvindo.mp3");
+  response.play(
+    "https://github.com/jpaugusto13/testevoice/blob/main/voices/bemvindo.mp3"
+  );
 
   // Após tocar, pode encerrar ou redirecionar para interação
   response.redirect("/processar");
