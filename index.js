@@ -7,7 +7,8 @@ app.use("/voices", express.static(path.join(__dirname, "voices")));
 
 app.post("/voice", (req, res) => {
   const response = new twiml.VoiceResponse();
-
+  console.log("Iniciando a chamada");
+  response.say("Olá, bem-vindo à Wiiprint!");
   response.play(
     "https://github.com/jpaugusto13/testevoice/blob/main/voices/bemvindo.mp3"
   );
