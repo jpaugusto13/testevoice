@@ -3,27 +3,29 @@ const express = require("express");
 const axios = require("axios");
 const fs = require("fs");
 const { twiml } = require("twilio");
-const app = express();
 const path = require("path");
 
+const app = express();
+
+// 🔑 Chaves e Configurações
+const openaiKey = process.env.OPENAI_API_KEY;
+const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+const voiceId = "EXAVITQu4vr4xnSDxMaL"; // ID da voz no ElevenLabs
+
+// 🔧 Middlewares
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-// ✅ Serve a pasta voices
+// 🔊 Servindo a pasta de áudios
 app.use("/voices", express.static(path.join(__dirname, "voices")));
 
-// ✅ Cria a pasta voices se não existir
+// 📁 Cria pasta voices se não existir
 if (!fs.existsSync("./voices")) {
   fs.mkdirSync("./voices");
-  console.log("📁 Pasta voices criada");
+  console.log("📁 Pasta voices criada.");
 }
 
-// 🔑 Keys
-const openaiKey = process.env.OPENAI_API_KEY;
-const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
-const voiceId = "EXAVITQu4vr4xnSDxMaL"; // 🔥 ID da voz escolhida na ElevenLabs
-
-// 🔥 Prompt base da Wiiprint
+// 🤖 Prompt base da IA
 const promptBase = `
 Você é um atendente da Wiiprint Sublimações, uma empresa especializada em sublimação de tecidos, painéis de festa, estampas e fardamentos personalizados.
 
@@ -45,16 +47,14 @@ Mantenha sempre um tom agradável, como se fosse um atendente real, humano.
 Quando o cliente perguntar sobre qualquer serviço, explique com detalhes, sugira opções e sempre pergunte:
 “Posso te ajudar com mais alguma coisa?”
 
-Você deve se comportar como um especialista na empresa, capaz de responder dúvidas sobre produtos, prazos, formas de pagamento, envios, materiais e diferenciais.
-
 Se em algum momento não souber a resposta, diga:
 "Essa é uma ótima pergunta! Vou encaminhar para nosso time de atendimento te responder direitinho."
 `;
 
-// 🧠 Função de gerar resposta da OpenAI
+// 🧠 Função para gerar resposta da OpenAI
 async function gerarResposta(pergunta) {
-  try {
-    const res = await axios.post(
+  return axios
+    .post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o",
@@ -70,21 +70,21 @@ async function gerarResposta(pergunta) {
           "Content-Type": "application/json",
         },
       }
-    );
-    return res.data.choices[0].message.content.trim();
-  } catch (error) {
-    console.error(
-      "❌ Erro OpenAI:",
-      error.response ? error.response.data : error.message
-    );
-    return "Desculpe, houve um erro ao gerar a resposta.";
-  }
+    )
+    .then((res) => res.data.choices[0].message.content.trim())
+    .catch((error) => {
+      console.error(
+        "❌ Erro OpenAI:",
+        error.response ? error.response.data : error.message
+      );
+      return "Desculpe, ocorreu um erro ao gerar a resposta.";
+    });
 }
 
-// 🎙️ Função de gerar áudio com ElevenLabs
+// 🎧 Função para gerar áudio com ElevenLabs
 async function gerarAudio(texto) {
-  try {
-    const response = await axios.post(
+  return axios
+    .post(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         text: texto,
@@ -101,82 +101,84 @@ async function gerarAudio(texto) {
         },
         responseType: "arraybuffer",
       }
-    );
-
-    const filePath = `voices/audio-${Date.now()}.mp3`;
-    fs.writeFileSync(filePath, response.data);
-    console.log("✅ Áudio gerado:", filePath);
-    return filePath;
-  } catch (error) {
-    console.error(
-      "❌ Erro ElevenLabs:",
-      error.response ? error.response.data : error.message
-    );
-    return null;
-  }
+    )
+    .then((res) => {
+      const fileName = `audio-${Date.now()}.mp3`;
+      const filePath = path.join(__dirname, "voices", fileName);
+      fs.writeFileSync(filePath, res.data);
+      console.log("✅ Áudio gerado:", fileName);
+      return fileName;
+    })
+    .catch((error) => {
+      console.error(
+        "❌ Erro ElevenLabs:",
+        error.response ? error.response.data : error.message
+      );
+      return null;
+    });
 }
 
 // 🔔 Endpoint inicial da ligação
 app.post("/voice", async (req, res) => {
-  const twimlResponse = new twiml.VoiceResponse();
+  const response = new twiml.VoiceResponse();
 
   const resposta = await gerarResposta(
     "Se apresente como atendente da Wiiprint Sublimações e explique o que fazemos."
   );
-  const audioPath = await gerarAudio(resposta);
+  const audioFile = await gerarAudio(resposta);
 
-  if (!audioPath) {
-    twimlResponse.say(
+  if (!audioFile) {
+    response.say(
       { voice: "Polly.Brazilian.Portuguese.Fabio", language: "pt-BR" },
-      "Desculpe, ocorreu um erro ao gerar o áudio. Por favor, tente novamente."
+      "Desculpe, houve um erro ao gerar o áudio. Por favor, tente novamente."
     );
   } else {
-    const gather = twimlResponse.gather({
+    const gather = response.gather({
       input: "speech",
       action: "/processar",
       method: "POST",
       speechTimeout: "auto",
     });
 
-    gather.play(`http://46.202.150.244:8082/${audioPath}`);
+    gather.play(`http://46.202.150.244:8082/voices/${audioFile}`);
   }
 
   res.type("text/xml");
-  res.send(twimlResponse.toString());
+  res.send(response.toString());
 });
 
-// 🔄 Processamento da conversa
+// 🔄 Endpoint que processa a fala do cliente e responde
 app.post("/processar", async (req, res) => {
-  const twimlResponse = new twiml.VoiceResponse();
+  const response = new twiml.VoiceResponse();
   const speechResult = req.body.SpeechResult || "Não entendi";
 
   const prompt = `O cliente falou: "${speechResult}". Responda como atendente da Wiiprint.`;
 
   const resposta = await gerarResposta(prompt);
-  const audioPath = await gerarAudio(resposta);
+  const audioFile = await gerarAudio(resposta);
 
-  if (!audioPath) {
-    twimlResponse.say(
+  if (!audioFile) {
+    response.say(
       { voice: "Polly.Brazilian.Portuguese.Fabio", language: "pt-BR" },
-      "Desculpe, ocorreu um erro ao gerar o áudio. Por favor, tente novamente."
+      "Desculpe, houve um erro ao gerar o áudio. Por favor, tente novamente."
     );
   } else {
-    const gather = twimlResponse.gather({
+    const gather = response.gather({
       input: "speech",
       action: "/processar",
       method: "POST",
       speechTimeout: "auto",
     });
 
-    gather.play(`http://46.202.150.244:8082/${audioPath}`);
+    gather.play(`http://46.202.150.244:8082/voices/${audioFile}`);
   }
 
   res.type("text/xml");
-  res.send(twimlResponse.toString());
+  res.send(response.toString());
 });
 
-// 🚀 Inicializa o servidor
-const PORT = process.env.PORT || 3000;
+// 🚀 Inicia o servidor
+const PORT = process.env.PORT || 8082;
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
