@@ -18,9 +18,7 @@ app.post("/voice", (req, res) => {
   const response = new twiml.VoiceResponse();
 
   // Toca um áudio inicial
-  response.play(
-    `https://github.com/jpaugusto13/testevoice/blob/main/voices/bemvindo.mp3`
-  );
+  response.play(`https://testevoice.onrender.com/voices/bemvindo.mp3`);
 
   // Abre um gather pra escutar o cliente
   const gather = response.gather({
