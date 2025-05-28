@@ -4,12 +4,13 @@ const axios = require("axios");
 const fs = require("fs");
 const { twiml } = require("twilio");
 const app = express();
+const path = require("path");
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 // ✅ Serve a pasta voices
-app.use("/voices", express.static("voices"));
+app.use("/voices", express.static(path.join(__dirname, "voices")));
 
 // ✅ Cria a pasta voices se não existir
 if (!fs.existsSync("./voices")) {
@@ -137,9 +138,7 @@ app.post("/voice", async (req, res) => {
       speechTimeout: "auto",
     });
 
-    gather.play(
-      `https://hideously-elegant-tortoise.ngrok-free.app/${audioPath}`
-    );
+    gather.play(`http://46.202.150.244:8082/${audioPath}`);
   }
 
   res.type("text/xml");
@@ -169,7 +168,7 @@ app.post("/processar", async (req, res) => {
       speechTimeout: "auto",
     });
 
-    gather.play(`https://${req.hostname}/${audioPath}`);
+    gather.play(`http://46.202.150.244:8082/${audioPath}`);
   }
 
   res.type("text/xml");
