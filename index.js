@@ -8,7 +8,18 @@ app.use("/voices", express.static(path.join(__dirname, "voices")));
 app.post("/voice", (req, res) => {
   const response = new twiml.VoiceResponse();
 
-  response.say("Olá, bem-vindo à Wiiprint. Esta é uma chamada de teste.");
+  response.say("Olá, bem-vindo à Wiiprint Sublimações.");
+
+  response.play("http://46.202.150.244:8082/voices/bemvindo.mp3");
+
+  const gather = response.gather({
+    input: "speech",
+    action: "/processar",
+    method: "POST",
+    speechTimeout: "auto",
+  });
+
+  gather.say("Pode falar, estou te ouvindo.");
 
   res.type("text/xml");
   res.send(response.toString());
@@ -24,7 +35,7 @@ app.post("/processar", (req, res) => {
     speechTimeout: "auto",
   });
 
-  gather.say("Pode falar, estou te ouvindo!");
+  gather.say("Pode continuar falando.");
 
   res.type("text/xml");
   res.send(response.toString());
